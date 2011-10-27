@@ -29,7 +29,6 @@ func (pq *PQ) Clear() {
 func (pq *PQ) Top() *State {
 	t := pq.states[0]
 	pq.states = pq.states[1:]
-
 	return &t
 }
 
@@ -130,7 +129,7 @@ type Ipoint2 struct {
 	x, y int32
 }
 
-func NewIpoint2(x,y int32) *Ipoint2 {
+func NewIpoint2(x, y int32) *Ipoint2 {
 	p := new(Ipoint2)
 	p.x = x
 	p.y = y
@@ -418,7 +417,7 @@ func (d *Dsl) computeShortestPath() int32 {
 	if d.openList.IsEmpty() {
 		return 1
 	}
-	
+
 	var k uint32
 	for (!d.openList.IsEmpty()) && ((d.openList.Peek()).Lt((d.calculateKey(d.start)))) || (d.getRHS(d.start) != d.getG(d.start)) {
 
@@ -487,9 +486,9 @@ func (d *Dsl) isValid(u State) bool {
 
 func (d *Dsl) UpdateGoal(x, y int32) {
 	addPoints := make(map[*State]Ipoint2)
-	addCosts  := make(map[*State]float64)
+	addCosts := make(map[*State]float64)
 
-  for i, h := range d.cellHash {
+	for i, h := range d.cellHash {
 		if !d.Close(h.cost, C1) {
 			addPoints[i] = *NewIpoint2(i.x, i.y)
 			addCosts[i] = h.cost
@@ -525,7 +524,7 @@ func (d *Dsl) UpdateGoal(x, y int32) {
 	//addPoints := make(map[*State]Ipoint2)
 	//addCosts  := make(map[*State]float64)
 	for i, v := range addPoints {
-	 d.UpdateCell(v.x, v.y, addCosts[i]) 
+		d.UpdateCell(v.x, v.y, addCosts[i])
 	}
 }
 
@@ -569,10 +568,10 @@ func (d *Dsl) Replan() bool {
 			val += d.getG(i)
 
 			iclose := d.Close(val, cmin)
-			if iclose  && tmin > val2 {
-					tmin = val2
-					cmin = val
-					smin = NewState(i.x, i.y, i.k_first, i.k_second)
+			if iclose && tmin > val2 {
+				tmin = val2
+				cmin = val
+				smin = NewState(i.x, i.y, i.k_first, i.k_second)
 			} else if val < cmin {
 				tmin = val2
 				cmin = val
@@ -597,7 +596,7 @@ func main() {
 	d.UpdateCell(2, 2, 42.432)
 	d.UpdateCell(1, 3, -1)
 	d.Replan()
-	
+
 	path1 := d.Path()
 	for i, p := range path1 {
 		fmt.Printf("%d: %d %d\n", i, p.x, p.y)
@@ -610,7 +609,7 @@ func main() {
 	for i, p := range path2 {
 		fmt.Printf("%d: %d %d\n", i, p.x, p.y)
 	}
-	
+
 	d.UpdateGoal(12, 19)
 	d.Replan()
 	path3 := d.Path()
