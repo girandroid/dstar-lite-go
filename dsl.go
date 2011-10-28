@@ -12,58 +12,58 @@ var (
 	M_SQRT2  float64 = math.Sqrt(2.0)
 )
 
-type PQ struct {
+type PQueue struct {
 	states []State
 }
 
-func (pq *PQ) IsEmpty() bool {
+func (pq *PQueue) IsEmpty() bool {
 	return len(pq.states) == 0
 }
 
-func (pq *PQ) Clear() {
+func (pq *PQueue) Clear() {
 	n := make([]State, 0, 1000)
-	*pq = *NewPQ(n)
+	*pq = *NewPQueue(n)
 }
 
-func (pq *PQ) Top() *State {
+func (pq *PQueue) Top() *State {
 	t := pq.states[0]
 	pq.states = pq.states[1:]
 	return &t
 }
 
-func (pq *PQ) Peek() *State {
+func (pq *PQueue) Peek() *State {
 	return &pq.states[0]
 }
 
-func (pq *PQ) Len() int {
+func (pq *PQueue) Len() int {
 	return len(pq.states)
 }
 
-func (pq *PQ) Less(i, j int) bool {
+func (pq *PQueue) Less(i, j int) bool {
 	s1 := pq.states[i]
 	s2 := pq.states[j]
 
 	return s2.Lt(s1)
 }
 
-func (pq *PQ) Swap(i, j int) {
+func (pq *PQueue) Swap(i, j int) {
 	pq.states[i], pq.states[j] = pq.states[j], pq.states[i]
 }
 
-func (pq *PQ) Sort() {
+func (pq *PQueue) Sort() {
 	sort.Sort(pq)
 	for i, l := 0, len(pq.states); i < l/2; i++ {
 		pq.states[i], pq.states[l-i-1] = pq.states[l-i-1], pq.states[i]
 	}
 }
 
-func (pq *PQ) Add(u State) {
+func (pq *PQueue) Add(u State) {
 	pq.states = append(pq.states, u)
 	pq.Sort()
 }
 
-func NewPQ(s []State) *PQ {
-	pq := new(PQ)
+func NewPQueue(s []State) *PQueue {
+	pq := new(PQueue)
 	pq.states = s
 	pq.Sort()
 	return pq
@@ -139,7 +139,7 @@ type Dsl struct {
 
 	start, goal, last State
 
-	openList PQ
+	openList PQueue
 	cellHash map[*State]CellInfo
 	openHash map[*State]float64
 }
@@ -218,7 +218,7 @@ func (d *Dsl) makeNewCell(u State) {
 }
 
 func (d *Dsl) updateVertex(u State) {
-	var s PQ
+	var s PQueue
 	if u.Neq(d.goal) {
 		s = d.getSucc(u)
 
@@ -248,11 +248,11 @@ func (d *Dsl) Close(x, y float64) bool {
 	return math.Fabs(x-y) < eps
 }
 
-func (d *Dsl) getSucc(u State) PQ {
+func (d *Dsl) getSucc(u State) PQueue {
 	ns := make([]State, 0, 100000)
 
 	if d.occupied(u) {
-		return *NewPQ(ns)
+		return *NewPQueue(ns)
 	}
 
 	ns = append(ns, *NewState(u.x+1, u.y, -1, -1))
@@ -264,10 +264,10 @@ func (d *Dsl) getSucc(u State) PQ {
 	ns = append(ns, *NewState(u.x, u.y-1, -1, -1))
 	ns = append(ns, *NewState(u.x+1, u.y-1, -1, -1))
 
-	return *NewPQ(ns)
+	return *NewPQueue(ns)
 }
 
-func (d *Dsl) getPred(u State) PQ {
+func (d *Dsl) getPred(u State) PQueue {
 	ns := make([]State, 0, 100000)
 
 	if !d.occupied(u) {
@@ -294,7 +294,7 @@ func (d *Dsl) getPred(u State) PQ {
 	if !d.occupied(u) {
 		ns = append(ns, *NewState(u.x+1, u.y-1, -1, -1))
 	}
-	return *NewPQ(ns)
+	return *NewPQueue(ns)
 }
 
 func (d *Dsl) getG(u State) float64 {
