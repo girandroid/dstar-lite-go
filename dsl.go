@@ -12,6 +12,7 @@ var (
 	M_SQRT2  float64 = math.Sqrt(2.0)
 )
 
+// d'oh! use container/list instead of this abomination ;)
 type PQueue struct {
 	states []State
 }
@@ -212,7 +213,7 @@ func (d *Dsl) makeNewCell(u State) {
 	if ok {
 		return
 	}
-	
+
 	h := d.heuristic(u, d.goal)
 	d.cellHash[&u] = CellInfo{h, h, C1}
 }
@@ -327,7 +328,7 @@ func (d *Dsl) setRHS(u State, rhs float64) {
 
 func (d *Dsl) setG(u State, g float64) {
 	d.makeNewCell(u)
-	tmp, _ := d.cellHash[&u] 
+	tmp, _ := d.cellHash[&u]
 	tmp.g = g
 	//d.cellHash[&u] = tmp
 }
@@ -477,10 +478,10 @@ func (d *Dsl) UpdateGoal(x, y int32) {
 	d.goal.x = x
 	d.goal.y = y
 
-	d.cellHash[&d.goal] = CellInfo{0,0,C1}
+	d.cellHash[&d.goal] = CellInfo{0, 0, C1}
 
 	h := d.heuristic(d.start, d.goal)
-	d.cellHash[&d.start] = CellInfo{h,h,C1}
+	d.cellHash[&d.start] = CellInfo{h, h, C1}
 	d.start = d.calculateKey(d.start)
 	d.last = d.start
 
