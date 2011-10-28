@@ -1,7 +1,8 @@
 include $(GOROOT)/src/Make.inc
 
-TARG=dstar
+TARG=Dstar
 GOFILES=\
-	dsl.go
+	dsl.go\
+	main.go
 
 include $(GOROOT)/src/Make.cmd

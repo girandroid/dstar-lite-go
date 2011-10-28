@@ -3,7 +3,6 @@ package main
 import (
 	"math"
 	"sort"
-	"fmt"
 )
 
 var (
@@ -125,15 +124,8 @@ func (s State) Hash() int32 {
 	return s.x + 34245*s.y
 }
 
-type Ipoint2 struct {
-	x, y int32
-}
-
-func NewIpoint2(x, y int32) *Ipoint2 {
-	p := new(Ipoint2)
-	p.x = x
-	p.y = y
-	return p
+type Point struct {
+	X, Y int32
 }
 
 type CellInfo struct {
@@ -141,13 +133,11 @@ type CellInfo struct {
 }
 
 type Dsl struct {
-	path []State
+	path []Point
 
-	C1, k_m float64
+	k_m float64
 
 	start, goal, last State
-
-	maxSteps uint32
 
 	openList PQ
 	cellHash map[*State]CellInfo
@@ -157,12 +147,9 @@ type Dsl struct {
 func NewDsl(sX, sY, gX, gY int32) *Dsl {
 	d := new(Dsl)
 
-	d.maxSteps = 80000
-	d.C1 = 1.0
-
 	d.cellHash = make(map[*State]CellInfo)
 	d.openHash = make(map[*State]float64)
-	d.path = make([]State, 0, 1000)
+	d.path = make([]Point, 0, 1000)
 
 	d.k_m = 0.0
 
@@ -172,20 +159,10 @@ func NewDsl(sX, sY, gX, gY int32) *Dsl {
 	d.goal.x = gX
 	d.goal.y = gY
 
-	var tmp CellInfo
-	tmp.g = 0
-	tmp.rhs = 0
-	tmp.cost = d.C1
+	d.cellHash[&d.goal] = CellInfo{0, 0, C1}
 
-	d.cellHash[&d.goal] = tmp
-
-	var tmp2 CellInfo
-	heuristic := d.heuristic(d.start, d.goal)
-	tmp2.g = heuristic
-	tmp2.rhs = heuristic
-	tmp2.cost = d.C1
-
-	d.cellHash[&d.start] = tmp2
+	h := d.heuristic(d.start, d.goal)
+	d.cellHash[&d.start] = CellInfo{h, h, C1}
 	d.start = d.calculateKey(d.start)
 	d.last = d.start
 
@@ -193,7 +170,7 @@ func NewDsl(sX, sY, gX, gY int32) *Dsl {
 }
 
 func (d *Dsl) heuristic(a, b State) float64 {
-	return d.eightCondist(a, b) * d.C1
+	return d.eightCondist(a, b) * C1
 }
 
 func (d *Dsl) eightCondist(a, b State) float64 {
@@ -235,13 +212,9 @@ func (d *Dsl) makeNewCell(u State) {
 	if ok {
 		return
 	}
-	var tmp CellInfo
+	
 	h := d.heuristic(u, d.goal)
-	tmp.g = h
-	tmp.rhs = h
-	tmp.cost = d.C1
-
-	d.cellHash[&u] = tmp
+	d.cellHash[&u] = CellInfo{h, h, C1}
 }
 
 func (d *Dsl) updateVertex(u State) {
@@ -349,14 +322,14 @@ func (d *Dsl) setRHS(u State, rhs float64) {
 	d.makeNewCell(u)
 	tmp, _ := d.cellHash[&u]
 	tmp.rhs = rhs
-	d.cellHash[&u] = tmp
+	//d.cellHash[&u] = tmp
 }
 
 func (d *Dsl) setG(u State, g float64) {
 	d.makeNewCell(u)
-	tmp, _ := d.cellHash[&u]
+	tmp, _ := d.cellHash[&u] 
 	tmp.g = g
-	d.cellHash[&u] = tmp
+	//d.cellHash[&u] = tmp
 }
 
 func (d *Dsl) cost(a, b State) float64 {
@@ -408,7 +381,7 @@ func (d *Dsl) keyHashCode(u State) float64 {
 	return u.k_first + 1193*u.k_second
 }
 
-func (d *Dsl) Path() []State {
+func (d *Dsl) Path() []Point {
 	return d.path
 }
 
@@ -485,46 +458,34 @@ func (d *Dsl) isValid(u State) bool {
 }
 
 func (d *Dsl) UpdateGoal(x, y int32) {
-	addPoints := make(map[*State]Ipoint2)
+	addPoints := make(map[*State]Point)
 	addCosts := make(map[*State]float64)
 
 	for i, h := range d.cellHash {
 		if !d.Close(h.cost, C1) {
-			addPoints[i] = *NewIpoint2(i.x, i.y)
+			addPoints[i] = Point{i.x, i.y}
 			addCosts[i] = h.cost
 		}
 	}
 
 	d.cellHash = make(map[*State]CellInfo)
 	d.openHash = make(map[*State]float64)
-	d.path = make([]State, 0, 1000)
+	d.path = make([]Point, 0, 1000)
 
 	d.k_m = 0.0
 
 	d.goal.x = x
 	d.goal.y = y
 
-	var tmp CellInfo
-	tmp.g = 0
-	tmp.rhs = 0
-	tmp.cost = d.C1
+	d.cellHash[&d.goal] = CellInfo{0,0,C1}
 
-	d.cellHash[&d.goal] = tmp
-
-	var tmp2 CellInfo
-	heuristic := d.heuristic(d.start, d.goal)
-	tmp2.g = heuristic
-	tmp2.rhs = heuristic
-	tmp2.cost = d.C1
-
-	d.cellHash[&d.start] = tmp2
+	h := d.heuristic(d.start, d.goal)
+	d.cellHash[&d.start] = CellInfo{h,h,C1}
 	d.start = d.calculateKey(d.start)
 	d.last = d.start
 
-	//addPoints := make(map[*State]Ipoint2)
-	//addCosts  := make(map[*State]float64)
 	for i, v := range addPoints {
-		d.UpdateCell(v.x, v.y, addCosts[i])
+		d.UpdateCell(v.X, v.Y, addCosts[i])
 	}
 }
 
@@ -539,7 +500,7 @@ func (d *Dsl) UpdateStart(x, y int32) {
 }
 
 func (d *Dsl) Replan() bool {
-	d.path = make([]State, 0, 1000)
+	d.path = make([]Point, 0, 1000)
 
 	res := d.computeShortestPath()
 	if res < 0 {
@@ -552,7 +513,7 @@ func (d *Dsl) Replan() bool {
 	}
 
 	for cur.Neq(d.goal) {
-		d.path = append(d.path, cur)
+		d.path = append(d.path, Point{cur.x, cur.y})
 		n := d.getSucc(cur)
 		if n.IsEmpty() {
 			return false
@@ -582,38 +543,6 @@ func (d *Dsl) Replan() bool {
 		cur = *NewState(smin.x, smin.y, smin.k_first, smin.k_second)
 	}
 
-	d.path = append(d.path, d.goal)
+	d.path = append(d.path, Point{d.goal.x, d.goal.y})
 	return true
-}
-
-func main() {
-	d := NewDsl(2, 0, 10, 10)
-	fmt.Println("new DSL")
-	d.UpdateCell(3, 3, -1)
-	d.UpdateCell(3, 2, -1)
-	d.UpdateCell(3, 1, -1)
-	d.UpdateCell(2, 3, -1)
-	d.UpdateCell(2, 2, 42.432)
-	d.UpdateCell(1, 3, -1)
-	d.Replan()
-
-	path1 := d.Path()
-	for i, p := range path1 {
-		fmt.Printf("%d: %d %d\n", i, p.x, p.y)
-	}
-
-	d.UpdateStart(0, 0)
-	d.Replan()
-
-	path2 := d.Path()
-	for i, p := range path2 {
-		fmt.Printf("%d: %d %d\n", i, p.x, p.y)
-	}
-
-	d.UpdateGoal(12, 19)
-	d.Replan()
-	path3 := d.Path()
-	for i, p := range path3 {
-		fmt.Printf("%d: %d %d\n", i, p.x, p.y)
-	}
 }
