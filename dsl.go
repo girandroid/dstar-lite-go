@@ -71,19 +71,8 @@ func NewPQueue(s []State) *PQueue {
 }
 
 type State struct {
-	x, y              int32
-	k_first, k_second float64
-}
-
-func NewState(x, y int32, k_first, k_second float64) *State {
-	s := new(State)
-
-	s.x = x
-	s.y = y
-	s.k_first = k_first
-	s.k_second = k_second
-
-	return s
+	x,y             int32
+	k1, k2 float64
 }
 
 func (s State) Eq(s2 State) bool {
@@ -95,30 +84,30 @@ func (s State) Neq(s2 State) bool {
 }
 
 func (s State) Gt(s2 State) bool {
-	if s.k_first-eps > s2.k_first {
+	if s.k1-eps > s2.k1 {
 		return true
-	} else if s.k_first < s2.k_first-eps {
+	} else if s.k1 < s2.k1-eps {
 		return false
 	}
-	return s.k_second > s2.k_second
+	return s.k2 > s2.k2
 }
 
 func (s State) Lte(s2 State) bool {
-	if s.k_first < s2.k_first {
+	if s.k1 < s2.k1 {
 		return true
-	} else if s.k_first > s2.k_second {
+	} else if s.k1 > s2.k2 {
 		return false
 	}
-	return s.k_second < s2.k_second+eps
+	return s.k2 < s2.k2+eps
 }
 
 func (s State) Lt(s2 State) bool {
-	if s.k_first+eps < s2.k_first {
+	if s.k1+eps < s2.k1 {
 		return true
-	} else if s.k_first-eps > s2.k_first {
+	} else if s.k1-eps > s2.k1 {
 		return false
 	}
-	return s.k_second < s2.k_second
+	return s.k2 < s2.k2
 }
 
 func (s State) Hash() int32 {
@@ -150,7 +139,7 @@ func NewDsl(sX, sY, gX, gY int32) *Dsl {
 
 	d.cellHash = make(map[*State]CellInfo)
 	d.openHash = make(map[*State]float64)
-	d.path = make([]Point, 0, 1000)
+	d.path = make([]Point, 0, maxSteps)
 
 	d.k_m = 0.0
 
@@ -193,19 +182,18 @@ func (d *Dsl) trueDist(a, b State) float64 {
 }
 
 func (d *Dsl) UpdateCell(x, y int32, val float64) {
-	u := NewState(x, y, 0, 0)
+	u := State{x, y, 0, 0}
 
 	if u.Eq(d.start) || u.Eq(d.goal) {
 		return
 	}
 
-	d.makeNewCell(*u)
+	d.makeNewCell(u)
 
-	tmp, _ := d.cellHash[u]
+	tmp, _ := d.cellHash[&u]
 	tmp.cost = val
-	d.cellHash[u] = tmp
 
-	d.updateVertex(*u)
+	d.updateVertex(u)
 }
 
 func (d *Dsl) makeNewCell(u State) {
@@ -256,14 +244,14 @@ func (d *Dsl) getSucc(u State) PQueue {
 		return *NewPQueue(ns)
 	}
 
-	ns = append(ns, *NewState(u.x+1, u.y, -1, -1))
-	ns = append(ns, *NewState(u.x+1, u.y+1, -1, -1))
-	ns = append(ns, *NewState(u.x, u.y+1, -1, -1))
-	ns = append(ns, *NewState(u.x-1, u.y+1, -1, -1))
-	ns = append(ns, *NewState(u.x-1, u.y, -1, -1))
-	ns = append(ns, *NewState(u.x-1, u.y-1, -1, -1))
-	ns = append(ns, *NewState(u.x, u.y-1, -1, -1))
-	ns = append(ns, *NewState(u.x+1, u.y-1, -1, -1))
+	ns = append(ns, State{u.x+1, u.y, -1, -1})
+	ns = append(ns, State{u.x+1, u.y+1, -1, -1})
+	ns = append(ns, State{u.x, u.y+1, -1, -1})
+	ns = append(ns, State{u.x-1, u.y+1, -1, -1})
+	ns = append(ns, State{u.x-1, u.y, -1, -1})
+	ns = append(ns, State{u.x-1, u.y-1, -1, -1})
+	ns = append(ns, State{u.x, u.y-1, -1, -1})
+	ns = append(ns, State{u.x+1, u.y-1, -1, -1})
 
 	return *NewPQueue(ns)
 }
@@ -272,28 +260,28 @@ func (d *Dsl) getPred(u State) PQueue {
 	ns := make([]State, 0, 100000)
 
 	if !d.occupied(u) {
-		ns = append(ns, *NewState(u.x+1, u.y, -1, -1))
+		ns = append(ns, State{u.x+1, u.y, -1, -1})
 	}
 	if !d.occupied(u) {
-		ns = append(ns, *NewState(u.x+1, u.y+1, -1, -1))
+		ns = append(ns, State{u.x+1, u.y+1, -1, -1})
 	}
 	if !d.occupied(u) {
-		ns = append(ns, *NewState(u.x, u.y+1, -1, -1))
+		ns = append(ns, State{u.x, u.y+1, -1, -1})
 	}
 	if !d.occupied(u) {
-		ns = append(ns, *NewState(u.x-1, u.y+1, -1, -1))
+		ns = append(ns, State{u.x-1, u.y+1, -1, -1})
 	}
 	if !d.occupied(u) {
-		ns = append(ns, *NewState(u.x-1, u.y, -1, -1))
+		ns = append(ns, State{u.x-1, u.y, -1, -1})
 	}
 	if !d.occupied(u) {
-		ns = append(ns, *NewState(u.x-1, u.y-1, -1, -1))
+		ns = append(ns, State{u.x-1, u.y-1, -1, -1})
 	}
 	if !d.occupied(u) {
-		ns = append(ns, *NewState(u.x, u.y-1, -1, -1))
+		ns = append(ns, State{u.x, u.y-1, -1, -1})
 	}
 	if !d.occupied(u) {
-		ns = append(ns, *NewState(u.x+1, u.y-1, -1, -1))
+		ns = append(ns, State{u.x+1, u.y-1, -1, -1})
 	}
 	return *NewPQueue(ns)
 }
@@ -372,14 +360,14 @@ func (d *Dsl) occupied(u State) bool {
 func (d *Dsl) calculateKey(u State) State {
 	val := math.Fmin(d.getRHS(u), d.getG(u))
 
-	u.k_first = val + d.heuristic(u, d.start) + d.k_m
-	u.k_second = val
+	u.k1 = val + d.heuristic(u, d.start) + d.k_m
+	u.k2 = val
 
 	return u
 }
 
 func (d *Dsl) keyHashCode(u State) float64 {
-	return u.k_first + 1193*u.k_second
+	return u.k1 + 1193*u.k2
 }
 
 func (d *Dsl) Path() []Point {
@@ -422,7 +410,7 @@ func (d *Dsl) computeShortestPath() int32 {
 
 		d.openHash[&u] = 0, false
 
-		k_old := NewState(u.x, u.y, u.k_first, u.k_second)
+		k_old := State{u.x, u.y, u.k1, u.k2}
 
 		if k_old.Lt(d.calculateKey(u)) {
 			d.insert(u)
@@ -522,7 +510,7 @@ func (d *Dsl) Replan() bool {
 
 		var cmin float64 = math.Inf(1)
 		var tmin float64 = 0
-		var smin = NewState(0, 0, 0, 0)
+		var smin = State{0, 0, 0, 0}
 
 		for _, i := range n.states {
 			var val float64 = d.cost(cur, i)
@@ -533,15 +521,15 @@ func (d *Dsl) Replan() bool {
 			if iclose && tmin > val2 {
 				tmin = val2
 				cmin = val
-				smin = NewState(i.x, i.y, i.k_first, i.k_second)
+				smin = State{i.x, i.y, i.k1, i.k2}
 			} else if val < cmin {
 				tmin = val2
 				cmin = val
-				smin = NewState(i.x, i.y, i.k_first, i.k_second)
+				smin = State{i.x, i.y, i.k1, i.k2}
 			}
 		}
 		n.Clear()
-		cur = *NewState(smin.x, smin.y, smin.k_first, smin.k_second)
+		cur = State{smin.x, smin.y, smin.k1, smin.k2}
 	}
 
 	d.path = append(d.path, Point{d.goal.x, d.goal.y})
