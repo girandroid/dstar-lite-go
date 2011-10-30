@@ -12,7 +12,6 @@ var (
 	M_SQRT2  float64 = math.Sqrt(2.0)
 )
 
-// d'oh! use container/list instead of this abomination ;)
 type PQueue struct {
 	states []State
 }
@@ -22,7 +21,7 @@ func (pq *PQueue) IsEmpty() bool {
 }
 
 func (pq *PQueue) Clear() {
-	n := make([]State, 0, 1000)
+	n := make([]State, 0, maxSteps)
 	*pq = *NewPQueue(n)
 }
 
@@ -53,9 +52,6 @@ func (pq *PQueue) Swap(i, j int) {
 
 func (pq *PQueue) Sort() {
 	sort.Sort(pq)
-	for i, l := 0, len(pq.states); i < l/2; i++ {
-		pq.states[i], pq.states[l-i-1] = pq.states[l-i-1], pq.states[i]
-	}
 }
 
 func (pq *PQueue) Add(u State) {
@@ -67,6 +63,7 @@ func NewPQueue(s []State) *PQueue {
 	pq := new(PQueue)
 	pq.states = s
 	pq.Sort()
+
 	return pq
 }
 
@@ -164,14 +161,14 @@ func (d *Dsl) heuristic(a, b State) float64 {
 }
 
 func (d *Dsl) eightCondist(a, b State) float64 {
-	var min float64 = math.Fabs(float64(a.x) - float64(b.x))
-	var max float64 = math.Fabs(float64(a.y) - float64(b.y))
+	var min float64 = math.Abs(float64(a.x) - float64(b.x))
+	var max float64 = math.Abs(float64(a.y) - float64(b.y))
 
 	if min > max {
 		min, max = max, min
 	}
 
-	return ((math.Sqrt(2)-1.0)*min + max)
+	return ((M_SQRT2-1.0)*min + max)
 }
 
 func (d *Dsl) trueDist(a, b State) float64 {
@@ -234,11 +231,11 @@ func (d *Dsl) Close(x, y float64) bool {
 		return true
 	}
 
-	return math.Fabs(x-y) < eps
+	return math.Abs(x-y) < eps
 }
 
 func (d *Dsl) getSucc(u State) PQueue {
-	ns := make([]State, 0, 100000)
+	ns := make([]State, 8)
 
 	if d.occupied(u) {
 		return *NewPQueue(ns)
@@ -257,7 +254,7 @@ func (d *Dsl) getSucc(u State) PQueue {
 }
 
 func (d *Dsl) getPred(u State) PQueue {
-	ns := make([]State, 0, 100000)
+	ns := make([]State, 8)
 
 	if !d.occupied(u) {
 		ns = append(ns, State{u.x+1, u.y, -1, -1})
@@ -322,8 +319,8 @@ func (d *Dsl) setG(u State, g float64) {
 }
 
 func (d *Dsl) cost(a, b State) float64 {
-	xd := math.Fabs(float64(a.x - b.x))
-	yd := math.Fabs(float64(a.y - b.y))
+	xd := math.Abs(float64(a.x - b.x))
+	yd := math.Abs(float64(a.y - b.y))
 
 	var scale float64 = 1
 	if xd+yd > 1 {
@@ -358,7 +355,7 @@ func (d *Dsl) occupied(u State) bool {
 }
 
 func (d *Dsl) calculateKey(u State) State {
-	val := math.Fmin(d.getRHS(u), d.getG(u))
+	val := math.Min(d.getRHS(u), d.getG(u))
 
 	u.k1 = val + d.heuristic(u, d.start) + d.k_m
 	u.k2 = val
@@ -459,7 +456,7 @@ func (d *Dsl) UpdateGoal(x, y int32) {
 
 	d.cellHash = make(map[*State]CellInfo)
 	d.openHash = make(map[*State]float64)
-	d.path = make([]Point, 0, 1000)
+	d.path = make([]Point, 0, maxSteps)
 
 	d.k_m = 0.0
 
@@ -489,7 +486,7 @@ func (d *Dsl) UpdateStart(x, y int32) {
 }
 
 func (d *Dsl) Replan() bool {
-	d.path = make([]Point, 0, 1000)
+	d.path = make([]Point, 0, maxSteps)
 
 	res := d.computeShortestPath()
 	if res < 0 {
