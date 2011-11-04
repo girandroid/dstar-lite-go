@@ -68,7 +68,7 @@ func NewPQueue(s []State) *PQueue {
 }
 
 type State struct {
-	x,y             int32
+	x, y   int32
 	k1, k2 float64
 }
 
@@ -235,50 +235,51 @@ func (d *Dsl) Close(x, y float64) bool {
 }
 
 func (d *Dsl) getSucc(u State) PQueue {
-	ns := make([]State, 8)
+	ns := make([]State, 8, 8)
 
 	if d.occupied(u) {
 		return *NewPQueue(ns)
 	}
 
-	ns = append(ns, State{u.x+1, u.y, -1, -1})
-	ns = append(ns, State{u.x+1, u.y+1, -1, -1})
-	ns = append(ns, State{u.x, u.y+1, -1, -1})
-	ns = append(ns, State{u.x-1, u.y+1, -1, -1})
-	ns = append(ns, State{u.x-1, u.y, -1, -1})
-	ns = append(ns, State{u.x-1, u.y-1, -1, -1})
-	ns = append(ns, State{u.x, u.y-1, -1, -1})
-	ns = append(ns, State{u.x+1, u.y-1, -1, -1})
+	ns[0] = State{u.x + 1, u.y, -1, -1}
+	ns[1] = State{u.x + 1, u.y + 1, -1, -1}
+	ns[2] = State{u.x, u.y + 1, -1, -1}
+	ns[3] = State{u.x - 1, u.y + 1, -1, -1}
+	ns[4] = State{u.x - 1, u.y, -1, -1}
+	ns[5] = State{u.x - 1, u.y - 1, -1, -1}
+	ns[6] = State{u.x, u.y - 1, -1, -1}
+	ns[7] = State{u.x + 1, u.y - 1, -1, -1}
 
 	return *NewPQueue(ns)
 }
 
 func (d *Dsl) getPred(u State) PQueue {
-	ns := make([]State, 8)
+	ns := make([]State, 8, 8)
+	free := !d.occupied(u)
 
-	if !d.occupied(u) {
-		ns = append(ns, State{u.x+1, u.y, -1, -1})
+	if free {
+		ns[0] = State{u.x + 1, u.y, -1, -1}
 	}
-	if !d.occupied(u) {
-		ns = append(ns, State{u.x+1, u.y+1, -1, -1})
+	if free {
+		ns[1] = State{u.x + 1, u.y + 1, -1, -1}
 	}
-	if !d.occupied(u) {
-		ns = append(ns, State{u.x, u.y+1, -1, -1})
+	if free {
+		ns[2] = State{u.x, u.y + 1, -1, -1}
 	}
-	if !d.occupied(u) {
-		ns = append(ns, State{u.x-1, u.y+1, -1, -1})
+	if free {
+		ns[3] = State{u.x - 1, u.y + 1, -1, -1}
 	}
-	if !d.occupied(u) {
-		ns = append(ns, State{u.x-1, u.y, -1, -1})
+	if free {
+		ns[4] = State{u.x - 1, u.y, -1, -1}
 	}
-	if !d.occupied(u) {
-		ns = append(ns, State{u.x-1, u.y-1, -1, -1})
+	if free {
+		ns[5] = State{u.x - 1, u.y - 1, -1, -1}
 	}
-	if !d.occupied(u) {
-		ns = append(ns, State{u.x, u.y-1, -1, -1})
+	if free {
+		ns[6] = State{u.x, u.y - 1, -1, -1}
 	}
-	if !d.occupied(u) {
-		ns = append(ns, State{u.x+1, u.y-1, -1, -1})
+	if free {
+		ns[7] = State{u.x + 1, u.y - 1, -1, -1}
 	}
 	return *NewPQueue(ns)
 }
@@ -308,14 +309,12 @@ func (d *Dsl) setRHS(u State, rhs float64) {
 	d.makeNewCell(u)
 	tmp, _ := d.cellHash[&u]
 	tmp.rhs = rhs
-	//d.cellHash[&u] = tmp
 }
 
 func (d *Dsl) setG(u State, g float64) {
 	d.makeNewCell(u)
 	tmp, _ := d.cellHash[&u]
 	tmp.g = g
-	//d.cellHash[&u] = tmp
 }
 
 func (d *Dsl) cost(a, b State) float64 {

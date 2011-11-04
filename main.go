@@ -21,20 +21,4 @@ func main() {
 	for i, p := range path {
 		fmt.Printf("%d: %d %d\n", i, p.X, p.Y)
 	}
-
-	/*
-	d.UpdateStart(0, 0)
-	d.Replan()
-
-	path = d.Path()
-	for i, p := range path {
-		fmt.Printf("%d: %d %d\n", i, p.X, p.Y)
-	}
-
-	d.UpdateGoal(12, 19)
-	d.Replan()
-	path = d.Path()
-	for i, p := range path {
-		fmt.Printf("%d: %d %d\n", i, p.X, p.Y)
-	}*/
 }
