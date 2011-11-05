@@ -155,14 +155,14 @@ type Dsl struct {
 
 	openList PQueue
 	cellHash CellHash
-	openHash map[*State]float64
+	openHash map[int32]float64
 }
 
 func NewDsl(sX, sY, gX, gY int32) *Dsl {
 	d := new(Dsl)
 
 	d.cellHash = *NewCellHash()
-	d.openHash = make(map[*State]float64)
+	d.openHash = make(map[int32]float64)
 	d.path = make([]Point, 0, maxSteps)
 
 	d.k_m = 0.0
@@ -218,15 +218,10 @@ func (d *Dsl) UpdateCell(x, y int32, val float64) {
 }
 
 func (d *Dsl) makeNewCell(u *State) {
-	/*for i, _ := range d.cellHash {
-		if i.Eq(u) {
-			return
-		}
-	}
-	/*_, ok := d.cellHash[&u]
+	_, ok := d.cellHash.Get(u)
 	if ok {
 		return
-	}*/
+	}
 
 	h := d.heuristic(u, d.goal)
 	d.cellHash.Put(u, &CellInfo{h, h, C1})
@@ -369,7 +364,7 @@ func (d *Dsl) insert(u *State) {
 	u = d.calculateKey(u)
 	csum = d.keyHashCode(u)
 
-	d.openHash[u] = csum
+	d.openHash[u.Hash()] = csum
 	d.openList.Add(u)
 }
 
@@ -433,7 +428,7 @@ func (d *Dsl) computeShortestPath() int32 {
 			break
 		}
 
-		d.openHash[u] = 0, false
+		d.openHash[u.Hash()] = 0, false
 
 		k_old := State{u.x, u.y, u.k1, u.k2}
 
@@ -459,7 +454,7 @@ func (d *Dsl) computeShortestPath() int32 {
 }
 
 func (d *Dsl) isValid(u *State) bool {
-	i, ok := d.openHash[u]
+	i, ok := d.openHash[u.Hash()]
 	if !ok {
 		return false
 	}
@@ -486,7 +481,7 @@ func (d *Dsl) UpdateGoal(x, y int32) {
 	}
 
 	d.cellHash = *NewCellHash()
-	d.openHash = make(map[*State]float64)
+	d.openHash = make(map[int32]float64)
 	d.path = make([]Point, 0, maxSteps)
 
 	d.k_m = 0.0
