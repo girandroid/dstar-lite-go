@@ -120,7 +120,7 @@ type CellInfo struct {
 }
 
 type CellHash struct {
-	info map[int32]*CellInfo
+	info  map[int32]*CellInfo
 	cells map[int32]*State
 }
 
@@ -130,7 +130,7 @@ func (ch *CellHash) Put(state *State, info *CellInfo) {
 }
 
 func (ch *CellHash) Get(state *State) (*CellInfo, bool) {
-  c, ok := ch.info[state.Hash()]
+	c, ok := ch.info[state.Hash()]
 	return c, ok
 }
 
@@ -479,7 +479,7 @@ func (d *Dsl) UpdateGoal(x, y int32) {
 	//cells map[int32]*State
 	for h, i := range d.cellHash.info {
 		if !d.Close(i.cost, C1) {
-      s := d.cellHash.cells[h]
+			s := d.cellHash.cells[h]
 			addPoints[h] = Point{s.x, s.y}
 			addCosts[h] = i.cost
 		}
