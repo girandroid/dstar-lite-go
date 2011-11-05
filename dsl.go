@@ -13,7 +13,7 @@ var (
 )
 
 type PQueue struct {
-	states []State
+	states []*State
 }
 
 func (pq *PQueue) IsEmpty() bool {
@@ -21,18 +21,18 @@ func (pq *PQueue) IsEmpty() bool {
 }
 
 func (pq *PQueue) Clear() {
-	n := make([]State, 0, maxSteps)
+	n := make([]*State, 0, maxSteps)
 	*pq = *NewPQueue(n)
 }
 
 func (pq *PQueue) Top() *State {
 	t := pq.states[0]
 	pq.states = pq.states[1:]
-	return &t
+	return t
 }
 
 func (pq *PQueue) Peek() *State {
-	return &pq.states[0]
+	return pq.states[0]
 }
 
 func (pq *PQueue) Len() int {
@@ -54,12 +54,12 @@ func (pq *PQueue) Sort() {
 	sort.Sort(pq)
 }
 
-func (pq *PQueue) Add(u State) {
+func (pq *PQueue) Add(u *State) {
 	pq.states = append(pq.states, u)
 	pq.Sort()
 }
 
-func NewPQueue(s []State) *PQueue {
+func NewPQueue(s []*State) *PQueue {
 	pq := new(PQueue)
 	pq.states = s
 	pq.Sort()
@@ -72,15 +72,15 @@ type State struct {
 	k1, k2 float64
 }
 
-func (s State) Eq(s2 State) bool {
+func (s *State) Eq(s2 *State) bool {
 	return ((s.x == s2.x) && (s.y == s2.y))
 }
 
-func (s State) Neq(s2 State) bool {
+func (s *State) Neq(s2 *State) bool {
 	return ((s.x != s2.x) || (s.y != s2.y))
 }
 
-func (s State) Gt(s2 State) bool {
+func (s *State) Gt(s2 *State) bool {
 	if s.k1-eps > s2.k1 {
 		return true
 	} else if s.k1 < s2.k1-eps {
@@ -89,7 +89,7 @@ func (s State) Gt(s2 State) bool {
 	return s.k2 > s2.k2
 }
 
-func (s State) Lte(s2 State) bool {
+func (s *State) Lte(s2 *State) bool {
 	if s.k1 < s2.k1 {
 		return true
 	} else if s.k1 > s2.k2 {
@@ -98,7 +98,7 @@ func (s State) Lte(s2 State) bool {
 	return s.k2 < s2.k2+eps
 }
 
-func (s State) Lt(s2 State) bool {
+func (s *State) Lt(s2 *State) bool {
 	if s.k1+eps < s2.k1 {
 		return true
 	} else if s.k1-eps > s2.k1 {
@@ -107,7 +107,7 @@ func (s State) Lt(s2 State) bool {
 	return s.k2 < s2.k2
 }
 
-func (s State) Hash() int32 {
+func (s *State) Hash() int32 {
 	return s.x + 34245*s.y
 }
 
@@ -119,48 +119,72 @@ type CellInfo struct {
 	g, rhs, cost float64
 }
 
+type CellHash struct {
+	info map[int32]*CellInfo
+	cells map[int32]*State
+}
+
+func (ch *CellHash) Put(state *State, info *CellInfo) {
+	ch.info[state.Hash()] = info
+	ch.cells[state.Hash()] = state
+}
+
+func (ch *CellHash) Get(state *State) (*CellInfo, bool) {
+  c, ok := ch.info[state.Hash()]
+	return c, ok
+}
+
+func (ch *CellHash) Clear() {
+	ch.info = make(map[int32]*CellInfo)
+	ch.cells = make(map[int32]*State)
+}
+
+func NewCellHash() *CellHash {
+	ch := new(CellHash)
+	ch.Clear()
+
+	return ch
+}
+
 type Dsl struct {
 	path []Point
 
 	k_m float64
 
-	start, goal, last State
+	start, goal, last *State
 
 	openList PQueue
-	cellHash map[*State]CellInfo
+	cellHash CellHash
 	openHash map[*State]float64
 }
 
 func NewDsl(sX, sY, gX, gY int32) *Dsl {
 	d := new(Dsl)
 
-	d.cellHash = make(map[*State]CellInfo)
+	d.cellHash = *NewCellHash()
 	d.openHash = make(map[*State]float64)
 	d.path = make([]Point, 0, maxSteps)
 
 	d.k_m = 0.0
 
-	d.start.x = sX
-	d.start.y = sY
+	d.start = &State{sX, sY, 0, 0}
+	d.goal = &State{gX, gY, 0, 0}
 
-	d.goal.x = gX
-	d.goal.y = gY
-
-	d.cellHash[&d.goal] = CellInfo{0, 0, C1}
+	d.cellHash.Put(d.goal, &CellInfo{0, 0, C1})
 
 	h := d.heuristic(d.start, d.goal)
-	d.cellHash[&d.start] = CellInfo{h, h, C1}
+	d.cellHash.Put(d.start, &CellInfo{h, h, C1})
 	d.start = d.calculateKey(d.start)
 	d.last = d.start
 
 	return d
 }
 
-func (d *Dsl) heuristic(a, b State) float64 {
+func (d *Dsl) heuristic(a, b *State) float64 {
 	return d.eightCondist(a, b) * C1
 }
 
-func (d *Dsl) eightCondist(a, b State) float64 {
+func (d *Dsl) eightCondist(a, b *State) float64 {
 	var min float64 = math.Abs(float64(a.x) - float64(b.x))
 	var max float64 = math.Abs(float64(a.y) - float64(b.y))
 
@@ -171,7 +195,7 @@ func (d *Dsl) eightCondist(a, b State) float64 {
 	return ((M_SQRT2-1.0)*min + max)
 }
 
-func (d *Dsl) trueDist(a, b State) float64 {
+func (d *Dsl) trueDist(a, b *State) float64 {
 	var x float64 = float64(a.x) - float64(b.x)
 	var y float64 = float64(a.y) - float64(b.y)
 
@@ -179,7 +203,7 @@ func (d *Dsl) trueDist(a, b State) float64 {
 }
 
 func (d *Dsl) UpdateCell(x, y int32, val float64) {
-	u := State{x, y, 0, 0}
+	u := &State{x, y, 0, 0}
 
 	if u.Eq(d.start) || u.Eq(d.goal) {
 		return
@@ -187,24 +211,29 @@ func (d *Dsl) UpdateCell(x, y int32, val float64) {
 
 	d.makeNewCell(u)
 
-	tmp, _ := d.cellHash[&u]
+	tmp, _ := d.cellHash.Get(u)
 	tmp.cost = val
 
 	d.updateVertex(u)
 }
 
-func (d *Dsl) makeNewCell(u State) {
-	_, ok := d.cellHash[&u]
+func (d *Dsl) makeNewCell(u *State) {
+	/*for i, _ := range d.cellHash {
+		if i.Eq(u) {
+			return
+		}
+	}
+	/*_, ok := d.cellHash[&u]
 	if ok {
 		return
-	}
+	}*/
 
 	h := d.heuristic(u, d.goal)
-	d.cellHash[&u] = CellInfo{h, h, C1}
+	d.cellHash.Put(u, &CellInfo{h, h, C1})
 }
 
-func (d *Dsl) updateVertex(u State) {
-	var s PQueue
+func (d *Dsl) updateVertex(u *State) {
+	var s *PQueue
 	if u.Neq(d.goal) {
 		s = d.getSucc(u)
 
@@ -234,70 +263,70 @@ func (d *Dsl) Close(x, y float64) bool {
 	return math.Abs(x-y) < eps
 }
 
-func (d *Dsl) getSucc(u State) PQueue {
-	ns := make([]State, 8, 8)
+func (d *Dsl) getSucc(u *State) *PQueue {
+	ns := make([]*State, 8, 8)
 
 	if d.occupied(u) {
-		return *NewPQueue(ns)
+		return NewPQueue(ns)
 	}
 
-	ns[0] = State{u.x + 1, u.y, -1, -1}
-	ns[1] = State{u.x + 1, u.y + 1, -1, -1}
-	ns[2] = State{u.x, u.y + 1, -1, -1}
-	ns[3] = State{u.x - 1, u.y + 1, -1, -1}
-	ns[4] = State{u.x - 1, u.y, -1, -1}
-	ns[5] = State{u.x - 1, u.y - 1, -1, -1}
-	ns[6] = State{u.x, u.y - 1, -1, -1}
-	ns[7] = State{u.x + 1, u.y - 1, -1, -1}
+	ns[0] = &State{u.x + 1, u.y, -1, -1}
+	ns[1] = &State{u.x + 1, u.y + 1, -1, -1}
+	ns[2] = &State{u.x, u.y + 1, -1, -1}
+	ns[3] = &State{u.x - 1, u.y + 1, -1, -1}
+	ns[4] = &State{u.x - 1, u.y, -1, -1}
+	ns[5] = &State{u.x - 1, u.y - 1, -1, -1}
+	ns[6] = &State{u.x, u.y - 1, -1, -1}
+	ns[7] = &State{u.x + 1, u.y - 1, -1, -1}
 
-	return *NewPQueue(ns)
+	return NewPQueue(ns)
 }
 
-func (d *Dsl) getPred(u State) PQueue {
-	ns := make([]State, 8, 8)
+func (d *Dsl) getPred(u *State) *PQueue {
+	ns := make([]*State, 8, 8)
 	free := !d.occupied(u)
 
 	if free {
-		ns[0] = State{u.x + 1, u.y, -1, -1}
+		ns[0] = &State{u.x + 1, u.y, -1, -1}
 	}
 	if free {
-		ns[1] = State{u.x + 1, u.y + 1, -1, -1}
+		ns[1] = &State{u.x + 1, u.y + 1, -1, -1}
 	}
 	if free {
-		ns[2] = State{u.x, u.y + 1, -1, -1}
+		ns[2] = &State{u.x, u.y + 1, -1, -1}
 	}
 	if free {
-		ns[3] = State{u.x - 1, u.y + 1, -1, -1}
+		ns[3] = &State{u.x - 1, u.y + 1, -1, -1}
 	}
 	if free {
-		ns[4] = State{u.x - 1, u.y, -1, -1}
+		ns[4] = &State{u.x - 1, u.y, -1, -1}
 	}
 	if free {
-		ns[5] = State{u.x - 1, u.y - 1, -1, -1}
+		ns[5] = &State{u.x - 1, u.y - 1, -1, -1}
 	}
 	if free {
-		ns[6] = State{u.x, u.y - 1, -1, -1}
+		ns[6] = &State{u.x, u.y - 1, -1, -1}
 	}
 	if free {
-		ns[7] = State{u.x + 1, u.y - 1, -1, -1}
+		ns[7] = &State{u.x + 1, u.y - 1, -1, -1}
 	}
-	return *NewPQueue(ns)
+	return NewPQueue(ns)
 }
 
-func (d *Dsl) getG(u State) float64 {
-	tmp, ok := d.cellHash[&u]
+func (d *Dsl) getG(u *State) float64 {
+	tmp, ok := d.cellHash.Get(u)
 	if !ok {
 		return d.heuristic(u, d.goal)
 	}
 	return tmp.g
 }
 
-func (d *Dsl) getRHS(u State) float64 {
+func (d *Dsl) getRHS(u *State) float64 {
 	if u.Eq(d.goal) {
 		return 0
 	}
 
-	tmp, ok := d.cellHash[&u]
+	tmp, ok := d.cellHash.Get(u)
 	if !ok {
 		return d.heuristic(u, d.goal)
 	}
@@ -305,19 +334,19 @@ func (d *Dsl) getRHS(u State) float64 {
 	return tmp.rhs
 }
 
-func (d *Dsl) setRHS(u State, rhs float64) {
+func (d *Dsl) setRHS(u *State, rhs float64) {
 	d.makeNewCell(u)
-	tmp, _ := d.cellHash[&u]
+	tmp, _ := d.cellHash.Get(u)
 	tmp.rhs = rhs
 }
 
-func (d *Dsl) setG(u State, g float64) {
+func (d *Dsl) setG(u *State, g float64) {
 	d.makeNewCell(u)
-	tmp, _ := d.cellHash[&u]
+	tmp, _ := d.cellHash.Get(u)
 	tmp.g = g
 }
 
-func (d *Dsl) cost(a, b State) float64 {
+func (d *Dsl) cost(a, b *State) float64 {
 	xd := math.Abs(float64(a.x - b.x))
 	yd := math.Abs(float64(a.y - b.y))
 
@@ -326,7 +355,7 @@ func (d *Dsl) cost(a, b State) float64 {
 		scale = M_SQRT2
 	}
 
-	it, ok := d.cellHash[&a]
+	it, ok := d.cellHash.Get(a)
 	if !ok {
 		return scale * C1
 	}
@@ -334,18 +363,18 @@ func (d *Dsl) cost(a, b State) float64 {
 	return scale * it.cost
 }
 
-func (d *Dsl) insert(u State) {
+func (d *Dsl) insert(u *State) {
 	var csum float64
 
 	u = d.calculateKey(u)
 	csum = d.keyHashCode(u)
 
-	d.openHash[&u] = csum
+	d.openHash[u] = csum
 	d.openList.Add(u)
 }
 
-func (d *Dsl) occupied(u State) bool {
-	it, ok := d.cellHash[&u]
+func (d *Dsl) occupied(u *State) bool {
+	it, ok := d.cellHash.Get(u)
 	if !ok {
 		return false
 	}
@@ -353,7 +382,7 @@ func (d *Dsl) occupied(u State) bool {
 	return it.cost < 0
 }
 
-func (d *Dsl) calculateKey(u State) State {
+func (d *Dsl) calculateKey(u *State) *State {
 	val := math.Min(d.getRHS(u), d.getG(u))
 
 	u.k1 = val + d.heuristic(u, d.start) + d.k_m
@@ -362,7 +391,7 @@ func (d *Dsl) calculateKey(u State) State {
 	return u
 }
 
-func (d *Dsl) keyHashCode(u State) float64 {
+func (d *Dsl) keyHashCode(u *State) float64 {
 	return u.k1 + 1193*u.k2
 }
 
@@ -386,13 +415,13 @@ func (d *Dsl) computeShortestPath() int32 {
 
 		test := (d.getRHS(d.start) != d.getG(d.start))
 
-		var u State
+		var u *State
 		for {
 			if d.openList.IsEmpty() {
 				return 1
 			}
 
-			u = *d.openList.Top()
+			u = d.openList.Top()
 			if !d.isValid(u) {
 				continue
 			}
@@ -404,7 +433,7 @@ func (d *Dsl) computeShortestPath() int32 {
 			break
 		}
 
-		d.openHash[&u] = 0, false
+		d.openHash[u] = 0, false
 
 		k_old := State{u.x, u.y, u.k1, u.k2}
 
@@ -429,8 +458,8 @@ func (d *Dsl) computeShortestPath() int32 {
 	return 0
 }
 
-func (d *Dsl) isValid(u State) bool {
-	i, ok := d.openHash[&u]
+func (d *Dsl) isValid(u *State) bool {
+	i, ok := d.openHash[u]
 	if !ok {
 		return false
 	}
@@ -443,17 +472,20 @@ func (d *Dsl) isValid(u State) bool {
 }
 
 func (d *Dsl) UpdateGoal(x, y int32) {
-	addPoints := make(map[*State]Point)
-	addCosts := make(map[*State]float64)
+	addPoints := make(map[int32]Point)
+	addCosts := make(map[int32]float64)
 
-	for i, h := range d.cellHash {
-		if !d.Close(h.cost, C1) {
-			addPoints[i] = Point{i.x, i.y}
-			addCosts[i] = h.cost
+	//info map[int32]*CellInfo
+	//cells map[int32]*State
+	for h, i := range d.cellHash.info {
+		if !d.Close(i.cost, C1) {
+      s := d.cellHash.cells[h]
+			addPoints[h] = Point{s.x, s.y}
+			addCosts[h] = i.cost
 		}
 	}
 
-	d.cellHash = make(map[*State]CellInfo)
+	d.cellHash = *NewCellHash()
 	d.openHash = make(map[*State]float64)
 	d.path = make([]Point, 0, maxSteps)
 
@@ -462,10 +494,10 @@ func (d *Dsl) UpdateGoal(x, y int32) {
 	d.goal.x = x
 	d.goal.y = y
 
-	d.cellHash[&d.goal] = CellInfo{0, 0, C1}
+	d.cellHash.Put(d.goal, &CellInfo{0, 0, C1})
 
 	h := d.heuristic(d.start, d.goal)
-	d.cellHash[&d.start] = CellInfo{h, h, C1}
+	d.cellHash.Put(d.start, &CellInfo{h, h, C1})
 	d.start = d.calculateKey(d.start)
 	d.last = d.start
 
@@ -492,7 +524,7 @@ func (d *Dsl) Replan() bool {
 		return false
 	}
 
-	var cur State = d.start
+	var cur *State = d.start
 	if d.getG(d.start) == math.Inf(1) {
 		return false
 	}
@@ -525,7 +557,7 @@ func (d *Dsl) Replan() bool {
 			}
 		}
 		n.Clear()
-		cur = State{smin.x, smin.y, smin.k1, smin.k2}
+		cur = &State{smin.x, smin.y, smin.k1, smin.k2}
 	}
 
 	d.path = append(d.path, Point{d.goal.x, d.goal.y})

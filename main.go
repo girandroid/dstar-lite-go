@@ -6,13 +6,12 @@ import (
 )
 
 func main() {
-	d := NewDsl(0, 0, 1000, 100)
+	d := NewDsl(0, 0, 1000, 1000)
 	fmt.Println("new DSL")
-	for i := 0; i < 1001; i++ {
-		for j := 0; j < 101; j++ {
+	for i := 0; i < 11; i++ {
+		for j := 0; j < 11; j++ {
 			r := rand.Float64()
 			d.UpdateCell(int32(i), int32(j), r)
-			fmt.Printf("Updated %d %d, %f\n", i, j, r)
 		}
 	}
 	d.Replan()
