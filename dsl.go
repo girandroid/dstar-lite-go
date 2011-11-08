@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	maxSteps uint32  = 800 // node extensions before we give up
+	maxSteps uint32  = 80000 // node extensions before we give up
 	C1       float64 = 1.0 // cost of unseen cell
 	eps      float64 = 0.00001
 	M_SQRT2  float64 = math.Sqrt(2.0)
@@ -43,7 +43,8 @@ func (pq *PQueue) Less(i, j int) bool {
 	s1 := pq.states[i]
 	s2 := pq.states[j]
 
-	return s2.Lt(s1)
+	//return s2.Lt(s1)
+	return s2.Gt(s1)
 }
 
 func (pq *PQueue) Swap(i, j int) {
@@ -213,7 +214,6 @@ func (d *Dsl) UpdateCell(x, y int32, val float64) {
 
 	tmp, _ := d.cellHash.Get(u)
 	tmp.cost = val
-
 	d.updateVertex(u)
 }
 
@@ -259,52 +259,60 @@ func (d *Dsl) Close(x, y float64) bool {
 }
 
 func (d *Dsl) getSucc(u *State) *PQueue {
-	ns := make([]*State, 8, 8)
-
+	ns := make([]*State, 0, 8)
 	if d.occupied(u) {
 		return NewPQueue(ns)
 	}
 
-	ns[0] = &State{u.x + 1, u.y, -1, -1}
-	ns[1] = &State{u.x + 1, u.y + 1, -1, -1}
-	ns[2] = &State{u.x, u.y + 1, -1, -1}
-	ns[3] = &State{u.x - 1, u.y + 1, -1, -1}
-	ns[4] = &State{u.x - 1, u.y, -1, -1}
-	ns[5] = &State{u.x - 1, u.y - 1, -1, -1}
-	ns[6] = &State{u.x, u.y - 1, -1, -1}
-	ns[7] = &State{u.x + 1, u.y - 1, -1, -1}
+	ns = append(ns, &State{u.x + 1, u.y, -1, -1})
+	ns = append(ns, &State{u.x + 1, u.y + 1, -1, -1})
+	ns = append(ns, &State{u.x, u.y + 1, -1, -1})
+	ns = append(ns, &State{u.x - 1, u.y + 1, -1, -1})
+	ns = append(ns, &State{u.x - 1, u.y, -1, -1})
+	ns = append(ns, &State{u.x - 1, u.y - 1, -1, -1})
+	ns = append(ns, &State{u.x, u.y - 1, -1, -1})
+	ns = append(ns, &State{u.x + 1, u.y - 1, -1, -1})
 
 	return NewPQueue(ns)
 }
 
 func (d *Dsl) getPred(u *State) *PQueue {
-	ns := make([]*State, 8, 8)
-	free := !d.occupied(u)
+	ns := make([]*State, 0, 8)
+	var tempState *State
 
-	if free {
-		ns[0] = &State{u.x + 1, u.y, -1, -1}
+	tempState = &State{u.x + 1, u.y, -1, -1}
+	if !d.occupied(tempState) {
+		ns = append(ns, tempState)
 	}
-	if free {
-		ns[1] = &State{u.x + 1, u.y + 1, -1, -1}
+	tempState = &State{u.x + 1, u.y + 1, -1, -1}
+	if !d.occupied(tempState) {
+		ns = append(ns, tempState)
 	}
-	if free {
-		ns[2] = &State{u.x, u.y + 1, -1, -1}
+	tempState = &State{u.x, u.y + 1, -1, -1}
+	if !d.occupied(tempState) {
+		ns = append(ns, tempState)
 	}
-	if free {
-		ns[3] = &State{u.x - 1, u.y + 1, -1, -1}
+	tempState = &State{u.x - 1, u.y + 1, -1, -1}
+	if !d.occupied(tempState) {
+		ns = append(ns, tempState)
 	}
-	if free {
-		ns[4] = &State{u.x - 1, u.y, -1, -1}
+	tempState = &State{u.x - 1, u.y, -1, -1}
+	if !d.occupied(tempState) {
+		ns = append(ns, tempState)
 	}
-	if free {
-		ns[5] = &State{u.x - 1, u.y - 1, -1, -1}
+	tempState = &State{u.x - 1, u.y - 1, -1, -1}
+	if !d.occupied(tempState) {
+		ns = append(ns, tempState)
 	}
-	if free {
-		ns[6] = &State{u.x, u.y - 1, -1, -1}
+	tempState = &State{u.x, u.y - 1, -1, -1}
+	if !d.occupied(tempState) {
+		ns = append(ns, tempState)
 	}
-	if free {
-		ns[7] = &State{u.x + 1, u.y - 1, -1, -1}
+	tempState = &State{u.x + 1, u.y - 1, -1, -1}
+	if !d.occupied(tempState) {
+		ns = append(ns, tempState)
 	}
+
 	return NewPQueue(ns)
 }
 
@@ -399,7 +407,6 @@ func (d *Dsl) computeShortestPath() int32 {
 	if d.openList.IsEmpty() {
 		return 1
 	}
-
 	var k uint32
 	for (!d.openList.IsEmpty()) && ((d.openList.Peek()).Lt((d.calculateKey(d.start)))) || (d.getRHS(d.start) != d.getG(d.start)) {
 
@@ -411,6 +418,7 @@ func (d *Dsl) computeShortestPath() int32 {
 		test := (d.getRHS(d.start) != d.getG(d.start))
 
 		var u *State
+		// lazy remove1
 		for {
 			if d.openList.IsEmpty() {
 				return 1
@@ -432,9 +440,9 @@ func (d *Dsl) computeShortestPath() int32 {
 
 		k_old := State{u.x, u.y, u.k1, u.k2}
 
-		if k_old.Lt(d.calculateKey(u)) {
+		if k_old.Lt(d.calculateKey(u)) { // u is out of date
 			d.insert(u)
-		} else if d.getG(u) > d.getRHS(u) {
+		} else if d.getG(u) > d.getRHS(u) { // needs update, got better
 			d.setG(u, d.getRHS(u))
 			s := d.getPred(u)
 			for _, i := range s.states {
@@ -503,7 +511,7 @@ func (d *Dsl) UpdateGoal(x, y int32) {
 
 func (d *Dsl) UpdateStart(x, y int32) {
 	d.start.x = x
-	d.start.x = y
+	d.start.y = y
 
 	d.k_m += d.heuristic(d.last, d.start)
 
@@ -526,6 +534,7 @@ func (d *Dsl) Replan() bool {
 
 	for cur.Neq(d.goal) {
 		d.path = append(d.path, Point{cur.x, cur.y})
+
 		n := d.getSucc(cur)
 		if n.IsEmpty() {
 			return false
