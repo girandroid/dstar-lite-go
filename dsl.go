@@ -2,11 +2,11 @@ package main
 
 import (
 	"math"
-	"sort"
+  "sort"
 )
 
 var (
-	maxSteps uint32  = 80000 // node extensions before we give up
+	maxSteps uint32  = 8000 // node extensions before we give up
 	C1       float64 = 1.0 // cost of unseen cell
 	eps      float64 = 0.00001
 	M_SQRT2  float64 = math.Sqrt(2.0)
@@ -228,12 +228,11 @@ func (d *Dsl) makeNewCell(u *State) {
 }
 
 func (d *Dsl) updateVertex(u *State) {
-	var s *PQueue
 	if u.Neq(d.goal) {
-		s = d.getSucc(u)
+		s := d.getSucc(u)
 
 		var tmp float64 = math.Inf(1)
-		for _, i := range s.states {
+		for _, i := range s {
 			tmp2 := d.getG(i) + d.cost(u, i)
 			if tmp2 < tmp {
 				tmp = tmp2
@@ -258,28 +257,50 @@ func (d *Dsl) Close(x, y float64) bool {
 	return math.Abs(x-y) < eps
 }
 
-func (d *Dsl) getSucc(u *State) *PQueue {
+func (d *Dsl) getSucc(u *State) []*State {
 	ns := make([]*State, 0, 8)
 	if d.occupied(u) {
-		return NewPQueue(ns)
+		return ns
 	}
-
-	ns = append(ns, &State{u.x + 1, u.y, -1, -1})
-	ns = append(ns, &State{u.x + 1, u.y + 1, -1, -1})
-	ns = append(ns, &State{u.x, u.y + 1, -1, -1})
-	ns = append(ns, &State{u.x - 1, u.y + 1, -1, -1})
-	ns = append(ns, &State{u.x - 1, u.y, -1, -1})
-	ns = append(ns, &State{u.x - 1, u.y - 1, -1, -1})
-	ns = append(ns, &State{u.x, u.y - 1, -1, -1})
 	ns = append(ns, &State{u.x + 1, u.y - 1, -1, -1})
+	ns = append(ns, &State{u.x, u.y - 1, -1, -1})
+	ns = append(ns, &State{u.x - 1, u.y - 1, -1, -1})
+	ns = append(ns, &State{u.x - 1, u.y, -1, -1})
+	ns = append(ns, &State{u.x - 1, u.y + 1, -1, -1})
+	ns = append(ns, &State{u.x, u.y + 1, -1, -1})
+	ns = append(ns, &State{u.x + 1, u.y + 1, -1, -1})
+	ns = append(ns, &State{u.x + 1, u.y, -1, -1})
 
-	return NewPQueue(ns)
+	return ns
 }
 
-func (d *Dsl) getPred(u *State) *PQueue {
+func (d *Dsl) getPred(u *State) []*State {
 	ns := make([]*State, 0, 8)
-	var tempState *State
-
+	
+	tempState := &State{u.x + 1, u.y - 1, -1, -1}
+	if !d.occupied(tempState) {
+		ns = append(ns, tempState)
+	}
+	tempState = &State{u.x, u.y - 1, -1, -1}
+	if !d.occupied(tempState) {
+		ns = append(ns, tempState)
+	}
+	tempState = &State{u.x - 1, u.y - 1, -1, -1}
+	if !d.occupied(tempState) {
+		ns = append(ns, tempState)
+	}
+	tempState = &State{u.x - 1, u.y, -1, -1}
+	if !d.occupied(tempState) {
+		ns = append(ns, tempState)
+	}
+	tempState = &State{u.x - 1, u.y + 1, -1, -1}
+	if !d.occupied(tempState) {
+		ns = append(ns, tempState)
+	}
+	tempState = &State{u.x, u.y + 1, -1, -1}
+	if !d.occupied(tempState) {
+		ns = append(ns, tempState)
+	}
 	tempState = &State{u.x + 1, u.y, -1, -1}
 	if !d.occupied(tempState) {
 		ns = append(ns, tempState)
@@ -288,32 +309,8 @@ func (d *Dsl) getPred(u *State) *PQueue {
 	if !d.occupied(tempState) {
 		ns = append(ns, tempState)
 	}
-	tempState = &State{u.x, u.y + 1, -1, -1}
-	if !d.occupied(tempState) {
-		ns = append(ns, tempState)
-	}
-	tempState = &State{u.x - 1, u.y + 1, -1, -1}
-	if !d.occupied(tempState) {
-		ns = append(ns, tempState)
-	}
-	tempState = &State{u.x - 1, u.y, -1, -1}
-	if !d.occupied(tempState) {
-		ns = append(ns, tempState)
-	}
-	tempState = &State{u.x - 1, u.y - 1, -1, -1}
-	if !d.occupied(tempState) {
-		ns = append(ns, tempState)
-	}
-	tempState = &State{u.x, u.y - 1, -1, -1}
-	if !d.occupied(tempState) {
-		ns = append(ns, tempState)
-	}
-	tempState = &State{u.x + 1, u.y - 1, -1, -1}
-	if !d.occupied(tempState) {
-		ns = append(ns, tempState)
-	}
 
-	return NewPQueue(ns)
+	return ns
 }
 
 func (d *Dsl) getG(u *State) float64 {
@@ -371,7 +368,6 @@ func (d *Dsl) insert(u *State) {
 
 	u = d.calculateKey(u)
 	csum = d.keyHashCode(u)
-
 	d.openHash[u.Hash()] = csum
 	d.openList.Add(u)
 }
@@ -381,7 +377,6 @@ func (d *Dsl) occupied(u *State) bool {
 	if !ok {
 		return false
 	}
-
 	return it.cost < 0
 }
 
@@ -409,7 +404,6 @@ func (d *Dsl) computeShortestPath() int32 {
 	}
 	var k uint32
 	for (!d.openList.IsEmpty()) && ((d.openList.Peek()).Lt((d.calculateKey(d.start)))) || (d.getRHS(d.start) != d.getG(d.start)) {
-
 		if k > maxSteps {
 			return -1
 		}
@@ -418,12 +412,11 @@ func (d *Dsl) computeShortestPath() int32 {
 		test := (d.getRHS(d.start) != d.getG(d.start))
 
 		var u *State
-		// lazy remove1
+		// lazy remove
 		for {
 			if d.openList.IsEmpty() {
 				return 1
 			}
-
 			u = d.openList.Top()
 			if !d.isValid(u) {
 				continue
@@ -432,12 +425,10 @@ func (d *Dsl) computeShortestPath() int32 {
 			if !(u.Lt(d.start)) && !test {
 				return 2
 			}
-
 			break
 		}
 
 		d.openHash[u.Hash()] = 0, false
-
 		k_old := State{u.x, u.y, u.k1, u.k2}
 
 		if k_old.Lt(d.calculateKey(u)) { // u is out of date
@@ -445,13 +436,13 @@ func (d *Dsl) computeShortestPath() int32 {
 		} else if d.getG(u) > d.getRHS(u) { // needs update, got better
 			d.setG(u, d.getRHS(u))
 			s := d.getPred(u)
-			for _, i := range s.states {
+			for _, i := range s {
 				d.updateVertex(i)
-			}
+		  }
 		} else {
 			d.setG(u, math.Inf(1))
 			s := d.getPred(u)
-			for _, i := range s.states {
+			for _, i := range s {
 				d.updateVertex(i)
 			}
 			d.updateVertex(u)
@@ -536,7 +527,7 @@ func (d *Dsl) Replan() bool {
 		d.path = append(d.path, Point{cur.x, cur.y})
 
 		n := d.getSucc(cur)
-		if n.IsEmpty() {
+		if len(n) == 0  {
 			return false
 		}
 
@@ -544,7 +535,7 @@ func (d *Dsl) Replan() bool {
 		var tmin float64 = 0
 		var smin = State{0, 0, 0, 0}
 
-		for _, i := range n.states {
+		for _, i := range n {
 			var val float64 = d.cost(cur, i)
 			var val2 float64 = d.trueDist(i, d.goal) + d.trueDist(d.start, i)
 			val += d.getG(i)
@@ -560,7 +551,7 @@ func (d *Dsl) Replan() bool {
 				smin = State{i.x, i.y, i.k1, i.k2}
 			}
 		}
-		n.Clear()
+		//n.Clear()
 		cur = &State{smin.x, smin.y, smin.k1, smin.k2}
 	}
 
