@@ -2,70 +2,120 @@ package main
 
 import (
 	"math"
-  "sort"
 )
 
 var (
-	maxSteps uint32  = 8000 // node extensions before we give up
-	C1       float64 = 1.0 // cost of unseen cell
+	maxSteps uint32  = 999000 // node extensions before we give up
+	C1       float64 = 1.0  // cost of unseen cell
 	eps      float64 = 0.00001
 	M_SQRT2  float64 = math.Sqrt(2.0)
 )
 
-type PQueue struct {
-	states []*State
+type OpenList struct {
+	queue []*State
+	size  int
 }
 
-func (pq *PQueue) IsEmpty() bool {
-	return len(pq.states) == 0
+func NewOpenList() *OpenList {
+	ol := new(OpenList)
+	ol.queue = make([]*State, 64, 64)
+	ol.size = 0
+	return ol
 }
 
-func (pq *PQueue) Clear() {
-	n := make([]*State, 0, maxSteps)
-	*pq = *NewPQueue(n)
+func (ol *OpenList) IsEmpty() bool {
+	return ol.size == 0
 }
 
-func (pq *PQueue) Top() *State {
-	t := pq.states[0]
-	pq.states = pq.states[1:]
-	return t
+func (ol *OpenList) Add(s *State) bool {
+	i := ol.size
+	if i >= len(ol.queue) {
+		ol.grow(i + 1)
+	}
+	ol.size = i + 1
+	if i == 0 {
+		ol.queue[0] = s
+	} else {
+		ol.siftUp(i, s)
+	}
+	return true
 }
 
-func (pq *PQueue) Peek() *State {
-	return pq.states[0]
+func (ol *OpenList) grow(minC int) {
+	oldC := len(ol.queue)
+	var newC int
+	if oldC < 64 {
+		newC = (oldC + 1) * 2
+	} else {
+		newC = (oldC / 2) * 3 
+	}
+
+	if newC < minC {
+		newC = minC
+	}
+	newQueue := make([]*State, newC, newC)
+	copy(newQueue, ol.queue)
+	ol.queue = newQueue
 }
 
-func (pq *PQueue) Len() int {
-	return len(pq.states)
+func (ol *OpenList) Peek() *State {
+	if len(ol.queue) == 0 {
+		return nil
+	}
+	return ol.queue[0]
 }
 
-func (pq *PQueue) Less(i, j int) bool {
-	s1 := pq.states[i]
-	s2 := pq.states[j]
-
-	//return s2.Lt(s1)
-	return s2.Gt(s1)
+func (ol *OpenList) Poll() *State {
+	if ol.size == 0 {
+		return nil
+	}
+	ol.size--
+	s := ol.size
+	result := ol.queue[0]
+	x := ol.queue[s]
+	ol.queue[s] = nil
+	if s != 0 {
+		ol.siftDown(0, x)
+	}
+	return result
 }
 
-func (pq *PQueue) Swap(i, j int) {
-	pq.states[i], pq.states[j] = pq.states[j], pq.states[i]
+func (ol *OpenList) siftDown(k int, x *State) {
+	half := ol.size / 2
+	for k < half {
+		child := (k * 2) + 1
+		c := ol.queue[child]
+		right := child + 1
+		if right < ol.size && c.Gt(ol.queue[right]) {
+			child = right
+			c = ol.queue[child]
+		}
+		if x.Lte(c) {
+			break
+		}
+
+		ol.queue[k] = c
+		k = child
+	}
+	ol.queue[k] = x
 }
 
-func (pq *PQueue) Sort() {
-	sort.Sort(pq)
+func (ol *OpenList) siftUp(k int, x *State) {
+	for k > 0 {
+		parent := (k - 1) / 2
+		e := ol.queue[parent]
+		if !x.Lt(e) {
+			break
+		}
+		ol.queue[k] = e
+		k = parent
+	}
+	ol.queue[k] = x
 }
 
-func (pq *PQueue) Add(u *State) {
-	pq.states = append(pq.states, u)
-	pq.Sort()
-}
-
-func NewPQueue(s []*State) *PQueue {
-	pq := new(PQueue)
-	pq.states = s
-	pq.Sort()
-
-	return pq
+func (ol *OpenList) Clear() {
+	ol.queue = make([]*State, len(ol.queue), cap(ol.queue))
+	ol.size = 0
 }
 
 type State struct {
@@ -84,10 +134,19 @@ func (s *State) Neq(s2 *State) bool {
 func (s *State) Gt(s2 *State) bool {
 	if s.k1-eps > s2.k1 {
 		return true
-	} else if s.k1 < s2.k1-eps {
+	} else if s.k1+eps < s2.k1 {
 		return false
 	}
 	return s.k2 > s2.k2
+}
+
+func (s *State) Gte(s2 *State) bool {
+	if s.k1 > s2.k1 {
+		return true
+	} else if s.k1 < s2.k1 {
+		return false
+	}
+	return s.k2 > s2.k2-eps
 }
 
 func (s *State) Lte(s2 *State) bool {
@@ -154,7 +213,7 @@ type Dsl struct {
 
 	start, goal, last *State
 
-	openList PQueue
+	openList OpenList
 	cellHash CellHash
 	openHash map[int32]float64
 }
@@ -276,7 +335,7 @@ func (d *Dsl) getSucc(u *State) []*State {
 
 func (d *Dsl) getPred(u *State) []*State {
 	ns := make([]*State, 0, 8)
-	
+
 	tempState := &State{u.x + 1, u.y - 1, -1, -1}
 	if !d.occupied(tempState) {
 		ns = append(ns, tempState)
@@ -398,17 +457,16 @@ func (d *Dsl) Path() []Point {
 }
 
 func (d *Dsl) computeShortestPath() int32 {
-
 	if d.openList.IsEmpty() {
 		return 1
 	}
+
 	var k uint32
 	for (!d.openList.IsEmpty()) && ((d.openList.Peek()).Lt((d.calculateKey(d.start)))) || (d.getRHS(d.start) != d.getG(d.start)) {
 		if k > maxSteps {
 			return -1
 		}
 		k++
-
 		test := (d.getRHS(d.start) != d.getG(d.start))
 
 		var u *State
@@ -417,7 +475,7 @@ func (d *Dsl) computeShortestPath() int32 {
 			if d.openList.IsEmpty() {
 				return 1
 			}
-			u = d.openList.Top()
+			u = d.openList.Poll()
 			if !d.isValid(u) {
 				continue
 			}
@@ -438,7 +496,7 @@ func (d *Dsl) computeShortestPath() int32 {
 			s := d.getPred(u)
 			for _, i := range s {
 				d.updateVertex(i)
-		  }
+			}
 		} else {
 			d.setG(u, math.Inf(1))
 			s := d.getPred(u)
@@ -448,7 +506,6 @@ func (d *Dsl) computeShortestPath() int32 {
 			d.updateVertex(u)
 		}
 	}
-
 	return 0
 }
 
@@ -481,7 +538,7 @@ func (d *Dsl) UpdateGoal(x, y int32) {
 
 	d.cellHash = *NewCellHash()
 	d.openHash = make(map[int32]float64)
-	d.path = make([]Point, 0, maxSteps)
+	d.openList.Clear()
 
 	d.k_m = 0.0
 
@@ -527,14 +584,13 @@ func (d *Dsl) Replan() bool {
 		d.path = append(d.path, Point{cur.x, cur.y})
 
 		n := d.getSucc(cur)
-		if len(n) == 0  {
+		if len(n) == 0 {
 			return false
 		}
 
 		var cmin float64 = math.Inf(1)
 		var tmin float64 = 0
 		var smin = State{0, 0, 0, 0}
-
 		for _, i := range n {
 			var val float64 = d.cost(cur, i)
 			var val2 float64 = d.trueDist(i, d.goal) + d.trueDist(d.start, i)
@@ -544,14 +600,13 @@ func (d *Dsl) Replan() bool {
 			if iclose && tmin > val2 {
 				tmin = val2
 				cmin = val
-				smin = State{i.x, i.y, i.k1, i.k2}
+				smin = *i
 			} else if val < cmin {
 				tmin = val2
 				cmin = val
-				smin = State{i.x, i.y, i.k1, i.k2}
+				smin = *i
 			}
 		}
-		//n.Clear()
 		cur = &State{smin.x, smin.y, smin.k1, smin.k2}
 	}
 
