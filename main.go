@@ -36,10 +36,10 @@ func main() {
 	d := NewDsl(1, 1, 63, 63)
 
 	m := image.NewNRGBA(image.Rect(0, 0, 64, 64))
-	for x := 0; x < 64; x ++ {
+	for x := 1; x < 63; x ++ {
 	  ok := rand.Intn(64)
 		for y := 0; y < 64; y++ {
-			if x % 8 != 0 || math.Abs(float64(y-ok)) < 3 {
+			if x % 5 != 0 || math.Abs(float64(y-ok)) < 3 {
 				cost := rand.Float64() * 3 + 1
 				d.UpdateCell(int32(x), int32(y), cost)
 				m.Set(int(x), int(y), color.RGBA{0, 0, 255 - uint8(cost / 3 * 128), 255})
@@ -65,8 +65,8 @@ func main() {
 	t2 := time.Nanoseconds()
 
 	fmt.Printf("Time :%d ns\n", t2-t1)
-	if !b {
-		fmt.Println("No Path")
+	if b != nil {
+		log.Fatal(b)
 	}
 
 	path := d.Path()

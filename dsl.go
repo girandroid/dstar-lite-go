@@ -2,15 +2,18 @@ package main
 
 import (
 	"math"
+	"os"
 )
 
 var (
-	maxSteps uint32  = 999000 // node extensions before we give up
+	maxSteps uint32  = 99999999 // node extensions before we give up
 	C1       float64 = 1.0  // cost of unseen cell
+	
 	eps      float64 = 0.00001
 	M_SQRT2  float64 = math.Sqrt(2.0)
 )
 
+// OpenList is a priority queue
 type OpenList struct {
 	queue []*State
 	size  int
@@ -18,7 +21,7 @@ type OpenList struct {
 
 func NewOpenList() *OpenList {
 	ol := new(OpenList)
-	ol.queue = make([]*State, 64, 64)
+	ol.queue = make([]*State, 11, 11)
 	ol.size = 0
 	return ol
 }
@@ -41,6 +44,7 @@ func (ol *OpenList) Add(s *State) bool {
 	return true
 }
 
+// grows the internal slice (doubles size if still small, times 1.5 when large)
 func (ol *OpenList) grow(minC int) {
 	oldC := len(ol.queue)
 	var newC int
@@ -223,7 +227,7 @@ func NewDsl(sX, sY, gX, gY int32) *Dsl {
 
 	d.cellHash = *NewCellHash()
 	d.openHash = make(map[int32]float64)
-	d.path = make([]Point, 0, maxSteps)
+	d.path = make([]Point, 0)
 
 	d.k_m = 0.0
 
@@ -456,15 +460,15 @@ func (d *Dsl) Path() []Point {
 	return d.path
 }
 
-func (d *Dsl) computeShortestPath() int32 {
+func (d *Dsl) computeShortestPath() os.Error {
 	if d.openList.IsEmpty() {
-		return 1
+		return nil
 	}
 
 	var k uint32
 	for (!d.openList.IsEmpty()) && ((d.openList.Peek()).Lt((d.calculateKey(d.start)))) || (d.getRHS(d.start) != d.getG(d.start)) {
 		if k > maxSteps {
-			return -1
+			return os.NewError("At max steps")
 		}
 		k++
 		test := (d.getRHS(d.start) != d.getG(d.start))
@@ -473,7 +477,7 @@ func (d *Dsl) computeShortestPath() int32 {
 		// lazy remove
 		for {
 			if d.openList.IsEmpty() {
-				return 1
+				return nil
 			}
 			u = d.openList.Poll()
 			if !d.isValid(u) {
@@ -481,7 +485,7 @@ func (d *Dsl) computeShortestPath() int32 {
 			}
 
 			if !(u.Lt(d.start)) && !test {
-				return 2
+				return nil
 			}
 			break
 		}
@@ -506,7 +510,7 @@ func (d *Dsl) computeShortestPath() int32 {
 			d.updateVertex(u)
 		}
 	}
-	return 0
+	return nil
 }
 
 func (d *Dsl) isValid(u *State) bool {
@@ -538,7 +542,7 @@ func (d *Dsl) UpdateGoal(x, y int32) {
 
 	d.cellHash = *NewCellHash()
 	d.openHash = make(map[int32]float64)
-	d.openList.Clear()
+	d.openList = *NewOpenList()
 
 	d.k_m = 0.0
 
@@ -567,17 +571,17 @@ func (d *Dsl) UpdateStart(x, y int32) {
 	d.last = d.start
 }
 
-func (d *Dsl) Replan() bool {
-	d.path = make([]Point, 0, maxSteps)
+func (d *Dsl) Replan() os.Error {
+	d.path = make([]Point, 0)
 
 	res := d.computeShortestPath()
-	if res < 0 {
-		return false
+	if res != nil {
+		return res
 	}
 
 	var cur *State = d.start
 	if d.getG(d.start) == math.Inf(1) {
-		return false
+		return os.NewError("No path")
 	}
 
 	for cur.Neq(d.goal) {
@@ -585,7 +589,7 @@ func (d *Dsl) Replan() bool {
 
 		n := d.getSucc(cur)
 		if len(n) == 0 {
-			return false
+			return os.NewError("No path")
 		}
 
 		var cmin float64 = math.Inf(1)
@@ -611,5 +615,5 @@ func (d *Dsl) Replan() bool {
 	}
 
 	d.path = append(d.path, Point{d.goal.x, d.goal.y})
-	return true
+	return nil
 }
